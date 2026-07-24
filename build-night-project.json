@@ -1,5 +1,5 @@
 {
-  "project-name": "<FILL THIS>",
-  "project-oneliner": "<FILL THIS>",
-  "project-description": "<FILL THIS>"
+  "project-name": "Chispy",
+  "project-oneliner": "Un agente que lee la base de clientes de una pyme y decide a quién contactar esta semana, con qué oferta y con qué mensaje.",
+  "project-description": "Toda pyme colombiana tiene sus clientes en un Excel que nadie abre. Chispy lo lee: entiende el CSV sucio que exporta el negocio, calcula recencia, frecuencia y monto de cada cliente, y resuelve el barrio en texto libre contra las 20 localidades de Bogota para asociarle su estrato. Sobre esa base, un agente decide donde esta la plata en riesgo, arma los segmentos que merecen una accion distinta, escribe el mensaje exacto para cada uno y lo envia por WhatsApp. El razonamiento se emite en streaming mientras ocurre, asi que el dueno del negocio ve por que se tomo cada decision. No busca clientes en redes sociales ni compra bases: usa las ventas que el negocio ya tiene y datos publicos agregados por zona, que en Colombia se asignan al inmueble y no a la persona. Cumple la Ley 1581 por diseno, y cada dato enriquecido viaja con su procedencia."
 }
