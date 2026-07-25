@@ -88,6 +88,12 @@ export default function Chispy() {
    * porque cambió de grupo.
    */
   const [plataAgente, setPlataAgente] = useState<PlataCuantificada | null>(null);
+  /**
+   * Se enciende con el primer WhatsApp que sale de verdad, y desde ahí la
+   * conversación se puede seguir en pantalla. Antes de eso no hay nada que
+   * mirar, así que el panel ni existe.
+   */
+  const [hiloVivo, setHiloVivo] = useState(false);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [corriendo, setCorriendo] = useState(false);
   const [negocio, setNegocio] = useState(
@@ -129,6 +135,7 @@ export default function Chispy() {
       setBriefing(null);
       setAvisos([]);
       setPlataAgente(null);
+      setHiloVivo(false);
       setCorriendo(true);
       setFase("Leyendo el archivo");
 
@@ -173,6 +180,7 @@ export default function Chispy() {
             });
             break;
           case "whatsapp":
+            setHiloVivo(true);
             setRazonamiento((prev) => [
               ...prev,
               {
@@ -428,6 +436,15 @@ export default function Chispy() {
               </div>
             </div>
           </section>
+
+          {/*
+            La conversación, en la pantalla.
+
+            Va justo debajo del agente porque es la consecuencia de lo que
+            acaba de hacer: manda el WhatsApp, y aquí se ve al cliente
+            contestar y a Valentina llevarlo a la videollamada.
+          */}
+          {hiloVivo && <ConversacionViva />}
 
           {avisos.length > 0 && (
             <ul className="mt-5 space-y-1">
@@ -812,6 +829,154 @@ function VistoDoble() {
         />
       ))}
     </svg>
+  );
+}
+
+/** El check sencillo: salió del dispositivo. Es todo lo que aquí se sabe. */
+function VistoSimple() {
+  return (
+    <svg viewBox="0 0 12 11" className="h-[11px] w-3 shrink-0" aria-hidden>
+      <path
+        d="M1 5.9 3.6 8.6 10.5 1.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Un mensaje del hilo. Lo que dice el negocio va a la derecha; el cliente, a la izquierda. */
+type MensajeHilo = { rol: "negocio" | "cliente"; texto: string; hora: string };
+
+/** Cada cuánto se pregunta por el hilo, y cuánto tiempo se sigue preguntando. */
+const REFRESCO_HILO_MS = 2000;
+const VENTANA_HILO_MS = 5 * 60 * 1000;
+
+/**
+ * La conversación en vivo.
+ *
+ * El agente manda el WhatsApp y la parte buena —el cliente contestando, y
+ * Valentina llevándolo a la videollamada— pasaba en un celular, fuera de la
+ * proyección. Este panel la trae a la pantalla preguntándole a Twilio cada dos
+ * segundos por el hilo con el número de prueba.
+ *
+ * Es un añadido, no una pieza crítica: si el endpoint no responde o el hilo
+ * viene vacío, el panel no se pinta y nadie en la sala se enteró de que existía.
+ * Y deja de preguntar a los cinco minutos: ninguna demo dura más, y una pestaña
+ * abierta toda la noche no tiene por qué seguir llamando a Twilio.
+ */
+function ConversacionViva() {
+  const [mensajes, setMensajes] = useState<MensajeHilo[]>([]);
+  const hiloRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    let temporizador = 0;
+    const arranque = Date.now();
+
+    const traer = async () => {
+      if (Date.now() - arranque > VENTANA_HILO_MS) {
+        window.clearInterval(temporizador);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/conversacion", { cache: "no-store" });
+        const datos = (await res.json()) as { mensajes?: unknown };
+        // Solo se pisa lo que hay si lo que llega tiene la forma esperada: una
+        // respuesta rara no puede dejar el panel a medio pintar.
+        if (vivo && Array.isArray(datos.mensajes)) {
+          setMensajes(datos.mensajes as MensajeHilo[]);
+        }
+      } catch {
+        // Silencio deliberado: se conserva lo último bueno que se pintó.
+      }
+    };
+
+    void traer();
+    temporizador = window.setInterval(traer, REFRESCO_HILO_MS);
+
+    return () => {
+      vivo = false;
+      window.clearInterval(temporizador);
+    };
+  }, []);
+
+  // Que el último mensaje esté siempre a la vista: es el que la sala espera.
+  useEffect(() => {
+    hiloRef.current?.scrollTo({ top: hiloRef.current.scrollHeight, behavior: "smooth" });
+  }, [mensajes.length]);
+
+  if (mensajes.length === 0) return null;
+
+  return (
+    <section className="panel sube mt-8 overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
+        <span className="etiqueta">Conversación en vivo</span>
+        <span className="flex items-center gap-2 text-[10px] text-[var(--bone-faint)]">
+          <span className="latido inline-block h-1.5 w-1.5 rounded-full bg-[var(--steady)]" />
+          Valentina está contestando
+        </span>
+      </div>
+
+      <div ref={hiloRef} className="max-h-[24rem] overflow-y-auto bg-[#0b141a] px-4 py-4">
+        {/*
+          La key es la posición y no el contenido a propósito: el hilo solo
+          crece, así que las burbujas ya pintadas no se remontan y la animación
+          de entrada le toca únicamente al mensaje nuevo.
+        */}
+        {mensajes.map((m, i) => (
+          <Burbuja key={i} m={m} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Una burbuja de WhatsApp, con el mismo lenguaje que la de la tarjeta del plan. */
+function Burbuja({ m }: { m: MensajeHilo }) {
+  const delNegocio = m.rol === "negocio";
+
+  return (
+    <div
+      className={`entra relative mb-2 max-w-[82%] rounded-lg px-3 py-2 ${
+        delNegocio
+          ? "ml-auto rounded-tr-none bg-[#005c4b]"
+          : "mr-auto rounded-tl-none bg-[#202c33]"
+      }`}
+    >
+      {/* El rabito, del lado que le toca. */}
+      <span
+        aria-hidden
+        className={`absolute top-0 h-[13px] w-[9px] ${
+          delNegocio ? "-right-[7px] bg-[#005c4b]" : "-left-[7px] bg-[#202c33]"
+        }`}
+        style={{
+          clipPath: delNegocio
+            ? "polygon(0 0, 100% 0, 0 100%)"
+            : "polygon(0 0, 100% 0, 100% 100%)",
+        }}
+      />
+
+      <p className="prosa text-[13.5px] leading-relaxed text-[#e9edef]">
+        {m.texto}
+        {/* Hueco para que la hora no se monte sobre la última línea. Da para
+            "10:57 p. m." más el check, que es lo que va a caber ahí. */}
+        <span
+          aria-hidden
+          className={`inline-block ${delNegocio ? "w-[5.5rem]" : "w-[4.5rem]"}`}
+        />
+      </p>
+
+      <span className="absolute right-2.5 bottom-1.5 flex items-center gap-1 text-[10px] text-white/60">
+        {m.hora}
+        {/* Un solo check: consta que salió, no que lo hayan leído. */}
+        {delNegocio && <VistoSimple />}
+      </span>
+    </div>
   );
 }
 
