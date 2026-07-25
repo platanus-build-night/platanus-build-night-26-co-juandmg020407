@@ -155,7 +155,7 @@ export function Voz({ texto, firma }: { texto: string; firma: string | null }) {
             onClick={alPulsar}
             disabled={estado.fase === "generando"}
             aria-busy={estado.fase === "generando"}
-            className="rounded-full bg-[var(--amber)] px-7 py-3 text-sm font-semibold tracking-wide text-[var(--void)] transition-transform hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--amber)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="rounded-full bg-[var(--amber)] px-7 py-3 text-sm font-semibold tracking-wide text-[var(--void)] transition-transform hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
           >
             {etiquetaBoton}
           </button>

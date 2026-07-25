@@ -290,12 +290,16 @@ export default function Chispy() {
                 Analizar base de ejemplo
               </button>
 
+              {/* El input va en sr-only y no oculto: `hidden` lo saca del orden
+                  de tabulación y dejaba este botón sin forma de alcanzarlo con
+                  el teclado. El foco se pinta sobre la etiqueta, que es lo que
+                  se ve. */}
               <label className="cursor-pointer rounded-full border border-[var(--line)] px-8 py-4 text-sm text-[var(--bone-dim)] transition-colors hover:border-[var(--amber)] hover:text-[var(--bone)]">
                 Subir mi CSV
                 <input
                   type="file"
                   accept=".csv,text/csv"
-                  className="hidden"
+                  className="sr-only"
                   onChange={async (e) => {
                     const archivo = e.target.files?.[0];
                     if (archivo) await procesar(await archivo.text());
@@ -339,7 +343,7 @@ export default function Chispy() {
                   etiqueta="Clientes leídos"
                   valor={`${clientes.length} de ${total || "?"}`}
                 />
-                <Lectura etiqueta="Facturación en la base" valor={pesos(facturado)} />
+                <Lectura etiqueta="Facturado" valor={pesos(facturado)} />
                 <Lectura etiqueta="Clientes en riesgo" valor={`${enRiesgo.length}`} acento />
               </div>
             </div>
@@ -738,8 +742,10 @@ function Lectura({
 }) {
   return (
     <div className="flex items-baseline gap-3 py-2.5">
-      <span className="etiqueta shrink-0">{etiqueta}</span>
-      <span aria-hidden className="guia min-w-4 flex-1" />
+      {/* La etiqueta cede antes que la cifra: en una pantalla estrecha se
+          prefiere que se parta un rótulo a que se salga la plata. */}
+      <span className="etiqueta">{etiqueta}</span>
+      <span aria-hidden className="guia min-w-3 flex-1" />
       <span
         className={`cifra shrink-0 text-base md:text-lg ${
           acento ? "text-[var(--alarm)]" : "text-[var(--bone)]"

@@ -195,8 +195,18 @@ body::before {
   border-bottom-width: 1px;
 }
 
-/* El foco se ve siempre: se navega esto con el teclado desde un escenario. */
-:focus-visible {
+/*
+ * El foco se ve siempre: esto se navega con el teclado desde un escenario.
+ *
+ * La regla de la etiqueta es para el botón de subir CSV, donde quien recibe el
+ * foco es un input en sr-only y lo que se ve es la etiqueta que lo envuelve.
+ *
+ * Donde el elemento lleva un color de texto propio el aro sale de ese color y
+ * no de ámbar. Se ve igual de bien sobre este fondo —hueso sobre casi negro— y
+ * forzarlo pedía !important, que no vale lo que cuesta.
+ */
+:focus-visible,
+label:focus-within {
   outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
