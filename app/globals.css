@@ -49,7 +49,7 @@
   --color-amber-deep: var(--amber-deep);
   --color-alarm: var(--alarm);
   --color-steady: var(--steady);
-  --font-display: var(--font-bricolage);
+  --font-display: var(--font-archivo);
   --font-mono: var(--font-plex-mono);
   --font-sans: var(--font-plex-sans);
 }
@@ -111,11 +111,18 @@ body::before {
 }
 
 /* --- Tipografía --- */
+
+/*
+ * El ancho expandido es la decisión tipográfica de toda la pantalla. Un
+ * grotesco ancho es la letra de los tableros, los marcadores y la señalética:
+ * ocupa el sitio sin adelgazar y aguanta que lo miren desde la última fila.
+ */
 .display {
-  font-family: var(--font-bricolage), Georgia, serif;
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 0.9;
+  font-family: var(--font-archivo), "Helvetica Neue", sans-serif;
+  font-weight: 700;
+  font-stretch: 118%;
+  letter-spacing: -0.005em;
+  line-height: 0.92;
 }
 
 .prosa {
@@ -132,7 +139,6 @@ body::before {
 /* Números que no bailan al actualizarse. */
 .cifra {
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
 }
 
 /* --- Movimiento --- */

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { Archivo, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
 /*
@@ -8,9 +8,16 @@ import "./globals.css";
  * diferencia entre que la tipografía cargue o que no.
  */
 
-const display = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+/*
+ * Archivo se pide con su eje de ancho variable porque aquí el ancho es
+ * significado: las cifras de un tablero de instrumentos son anchas, nunca
+ * condensadas — se leen desde lejos y de reojo. Todo lo que grita en esta
+ * pantalla (el wordmark, la plata) va expandido.
+ */
+const display = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
+  axes: ["wdth"],
   display: "swap",
 });
 
