@@ -518,13 +518,15 @@ const prefiereQuieto = () =>
  * aparece ya puesta.
  */
 function useConteo(valor: number, ms = 1200) {
-  const [n, setN] = useState(() => (prefiereQuieto() ? valor : 0));
+  /* La preferencia se lee una sola vez, al montar: no es algo que cambie a
+     mitad de una demo, y así el conteo no depende de consultarla en cada
+     cuadro. Cuando está puesta, la cifra se devuelve tal cual y este hook no
+     agenda nada. */
+  const [quieto] = useState(prefiereQuieto);
+  const [n, setN] = useState(0);
 
   useEffect(() => {
-    if (prefiereQuieto()) {
-      setN(valor);
-      return;
-    }
+    if (quieto) return;
 
     let cuadro = 0;
     const t0 = performance.now();
@@ -538,10 +540,22 @@ function useConteo(valor: number, ms = 1200) {
     };
 
     cuadro = requestAnimationFrame(paso);
-    return () => cancelAnimationFrame(cuadro);
-  }, [valor, ms]);
 
-  return n;
+    /*
+     * Red de seguridad, y no es teórica: en una pestaña de fondo el navegador
+     * no dispara ni un solo cuadro, y la cifra que manda en la pantalla se
+     * queda en $0 hasta que alguien la mira. Un temporizador sí llega igual, y
+     * deja el número puesto aunque la animación no haya existido.
+     */
+    const red = setTimeout(() => setN(valor), ms + 100);
+
+    return () => {
+      cancelAnimationFrame(cuadro);
+      clearTimeout(red);
+    };
+  }, [valor, ms, quieto]);
+
+  return quieto ? valor : n;
 }
 
 /**
