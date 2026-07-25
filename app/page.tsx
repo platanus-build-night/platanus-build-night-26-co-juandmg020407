@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Ojos, type EstadoOjos } from "@/components/Ojos.tsx";
 import { ETIQUETAS_RFM } from "@/lib/enriquecimiento/rfm.ts";
 import type {
@@ -341,8 +342,16 @@ export default function Chispy() {
 
             {/* Razonamiento */}
             <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
-              <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
                 <span className="etiqueta">El agente está pensando</span>
+                {/* El muñequito del agente: quien de verdad está haciendo el trabajo. */}
+                <Image
+                  src="/mascota.png"
+                  alt="El agente de Chispy"
+                  width={23}
+                  height={32}
+                  className="opacity-90"
+                />
               </div>
               <div ref={razonRef} className="max-h-[27rem] overflow-y-auto px-5 py-4">
                 {razonamiento.length === 0 ? (
