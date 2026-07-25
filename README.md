@@ -28,6 +28,14 @@ empresas que ya tienen un equipo de marketing.
 
 El dato está ahí. Lo que falta es alguien que lo mire.
 
+**Para la demo escogimos un dolor de nicho** — mejor resolver un problema
+concreto que abarcarlo todo — y es uno que comparten las joyerías de Bogotá:
+las campañas de Meta llenan el WhatsApp de leads, la venta se cierra por
+videollamada, y el chatbot de flujo que los atiende los enfría en cuanto suena
+a robot. Un lead que no se contesta bien en minutos es un lead muerto. Chispy
+ataca las dos puntas: su agente decide a quién reactivar antes de que la plata
+se enfríe, y su asesora contesta lo que entra sin sonar a máquina.
+
 ## Qué hace
 
 Se sube un CSV —el que exporta el negocio, sin limpiar— y Chispy:
@@ -45,6 +53,11 @@ Se sube un CSV —el que exporta el negocio, sin limpiar— y Chispy:
 4. **Lo ejecuta él mismo.** El agente elige al cliente que más urge y le manda
    su WhatsApp en el momento, sin que nadie pulse nada. Cada segmento trae
    además su mensaje listo y un botón de envío manual.
+5. **Y contesta lo que entra.** Cuando el cliente responde, no lo recibe un
+   árbol de opciones: contesta Valentina, una asesora sobre Claude que escribe
+   como una persona — corto, cálido, con memoria del hilo — y lleva la
+   conversación hacia agendar la videollamada, que es donde la joyería cierra.
+   Si le preguntan si es un bot, no miente.
 
 El razonamiento y las acciones del agente se emiten en streaming mientras
 ocurren, así que el dueño del negocio ve *por qué* y *cómo* se tomó cada
@@ -87,6 +100,7 @@ CSV → parseo → RFM ────┐             ┌ ver_clientes
 | `lib/agente/agente.ts` | El agente con herramientas: explora la base, cuantifica, envía y entrega el plan |
 | `lib/whatsapp.ts` | Envío por Twilio, con los códigos de error traducidos a algo accionable |
 | `app/api/procesar` | El pipeline entero servido como stream NDJSON, evento a evento |
+| `app/api/whatsapp/entrante` | Valentina: responde los WhatsApp entrantes con memoria del hilo (leída de Twilio) y firma validada |
 
 **El guardarraíl del envío es de código, no de prompt:** el agente decide a
 quién escribir y qué decirle, pero el destino físico de todo mensaje es siempre
