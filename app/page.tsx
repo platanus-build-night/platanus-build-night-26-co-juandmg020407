@@ -68,7 +68,9 @@ export default function Chispy() {
   const [total, setTotal] = useState(0);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [corriendo, setCorriendo] = useState(false);
-  const [negocio, setNegocio] = useState("Veterinaria Huellitas");
+  const [negocio, setNegocio] = useState(
+    "Joyería Áurea — vende por videollamada, leads de campañas de Meta",
+  );
 
   const cascadaRef = useRef<HTMLDivElement>(null);
   const razonRef = useRef<HTMLDivElement>(null);
@@ -225,7 +227,7 @@ export default function Chispy() {
   );
 
   const usarEjemplo = useCallback(async () => {
-    const res = await fetch("/ejemplo/veterinaria-huellitas.csv");
+    const res = await fetch("/ejemplo/joyeria-aurea.csv");
     await procesar(await res.text());
   }, [procesar]);
 
@@ -240,7 +242,9 @@ export default function Chispy() {
         <div className="flex items-end gap-5">
           <Ojos estado={estadoOjos} className="h-14 w-auto shrink-0 md:h-20" />
           <div>
-            <h1 className="display text-5xl md:text-7xl">chispy</h1>
+            <h1 className="display text-5xl md:text-7xl">
+              chi<span className="text-[var(--amber)]">spy</span>
+            </h1>
             <p className="etiqueta mt-2">vigila tu base de clientes</p>
           </div>
         </div>

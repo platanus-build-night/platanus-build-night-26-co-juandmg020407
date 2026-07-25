@@ -11,9 +11,10 @@
  * lee la base, miran arriba mientras el agente razona, y se clavan al frente
  * cuando hay un veredicto.
  *
- * Y cuando no están trabajando, te miran: en reposo y con el plan entregado,
- * las pupilas siguen el puntero. En los estados animados por CSS no — ahí el
- * transform lo gobierna la animación y pisarlo con estilo inline la rompería.
+ * Y siempre, en cualquier estado, te siguen: la animación del estado vive en un
+ * grupo exterior y la mirada al puntero en uno interior, así los dos transforms
+ * se componen en vez de pisarse. En los estados animados la mirada tiene menos
+ * recorrido para que la pupila no se salga del globo.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -27,12 +28,12 @@ const MOVIMIENTO: Record<EstadoOjos, string> = {
   halla: "ojos-fija",
 };
 
-/** Estados en los que la pupila queda libre para seguir el puntero. */
-const SIGUE_PUNTERO: Record<EstadoOjos, boolean> = {
-  duerme: true,
-  busca: false,
-  piensa: false,
-  halla: true,
+/** Recorrido de la mirada por estado, en unidades del viewBox. */
+const RECORRIDO: Record<EstadoOjos, { x: number; y: number }> = {
+  duerme: { x: 8, y: 5.5 },
+  busca: { x: 4, y: 3.5 },
+  piensa: { x: 4, y: 3.5 },
+  halla: { x: 8, y: 5.5 },
 };
 
 export function Ojos({
@@ -43,15 +44,12 @@ export function Ojos({
   className?: string;
 }) {
   const alerta = estado === "halla";
-  const sigue = SIGUE_PUNTERO[estado];
 
   const svgRef = useRef<SVGSVGElement>(null);
   const marco = useRef(0);
   const [mirada, setMirada] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (!sigue) return;
-
     const alMover = (e: PointerEvent) => {
       cancelAnimationFrame(marco.current);
       marco.current = requestAnimationFrame(() => {
@@ -61,10 +59,9 @@ export function Ojos({
         const dy = e.clientY - (caja.top + caja.height / 2);
         const dist = Math.hypot(dx, dy) || 1;
         // Saturación suave: cerca del logo la mirada acompaña, lejos se clava
-        // al tope. Unidades del viewBox: la pupila (r 10.5) vive en una
-        // elipse rx 25, así que ±8/±5.5 nunca la saca del globo.
+        // al tope. Se guarda normalizada [-1, 1]; el recorrido lo pone el estado.
         const fuerza = Math.min(1, dist / 240);
-        setMirada({ x: (dx / dist) * 8 * fuerza, y: (dy / dist) * 5.5 * fuerza });
+        setMirada({ x: (dx / dist) * fuerza, y: (dy / dist) * fuerza });
       });
     };
 
@@ -73,7 +70,9 @@ export function Ojos({
       window.removeEventListener("pointermove", alMover);
       cancelAnimationFrame(marco.current);
     };
-  }, [sigue]);
+  }, []);
+
+  const alcance = RECORRIDO[estado];
 
   return (
     <svg
@@ -106,26 +105,24 @@ export function Ojos({
               fill="url(#humedad)"
               filter="url(#hundido)"
             />
-            <g
-              className={MOVIMIENTO[estado]}
-              style={
-                sigue
-                  ? {
-                      transform: `translate(${mirada.x}px, ${mirada.y}px)`,
-                      transition: "transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
-                    }
-                  : undefined
-              }
-            >
-              <circle
-                cx={cx}
-                cy={29}
-                r={alerta ? 12.5 : 10.5}
-                fill="#0c0a09"
-                style={{ transition: "r 0.28s cubic-bezier(0.16,1,0.3,1)" }}
-              />
-              {/* Reflejo. Va con la pupila, no con el globo. */}
-              <circle cx={cx - 4} cy={24.5} r={3.1} fill="#fff" opacity={0.9} />
+            {/* Exterior: la animación del estado. Interior: la mirada al puntero. */}
+            <g className={MOVIMIENTO[estado]}>
+              <g
+                style={{
+                  transform: `translate(${mirada.x * alcance.x}px, ${mirada.y * alcance.y}px)`,
+                  transition: "transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
+              >
+                <circle
+                  cx={cx}
+                  cy={29}
+                  r={alerta ? 12.5 : 10.5}
+                  fill="#0c0a09"
+                  style={{ transition: "r 0.28s cubic-bezier(0.16,1,0.3,1)" }}
+                />
+                {/* Reflejo. Va con la pupila, no con el globo. */}
+                <circle cx={cx - 4} cy={24.5} r={3.1} fill="#fff" opacity={0.9} />
+              </g>
             </g>
           </g>
         ))}

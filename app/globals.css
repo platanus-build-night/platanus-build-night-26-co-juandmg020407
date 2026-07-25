@@ -267,7 +267,7 @@ body::before {
   }
 }
 .ojos-parpadeo {
-  animation: ojos-parpadeo 6.4s ease-in-out infinite;
+  animation: ojos-parpadeo 7s ease-in-out infinite;
 }
 
 /* --- La voz --- */
