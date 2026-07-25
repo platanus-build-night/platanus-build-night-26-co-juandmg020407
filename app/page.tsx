@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { Mascota } from "@/components/Mascota.tsx";
 import { Ojos, type EstadoOjos } from "@/components/Ojos.tsx";
 import { Voz } from "@/components/Voz.tsx";
 import { ETIQUETAS_RFM } from "@/lib/enriquecimiento/rfm.ts";
@@ -56,6 +56,16 @@ const COLOR: Record<SegmentoRfm, string> = {
   dormido: "var(--bone-dim)",
   sin_datos: "var(--bone-faint)",
 };
+
+/**
+ * La cabecera de los dos paneles que van lado a lado.
+ *
+ * Es una clase compartida y no `py-3` en cada uno porque en el de la derecha
+ * vive el mono, que es más alto que el texto: con altura fija los dos paneles
+ * arrancan su contenido a la misma raya, que es lo que se nota desde lejos.
+ */
+const cabezaPanel =
+  "flex h-16 items-center justify-between border-b border-[var(--line)] px-5 md:h-[5.25rem]";
 
 /** Lo que el agente cuantificó con calcular_plata_en_riesgo. */
 type PlataCuantificada = { pesos: number; clientes: number };
@@ -397,7 +407,7 @@ export default function Chispy() {
           <section className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
             {/* Cascada */}
             <div className="panel overflow-hidden">
-              <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
+              <div className={cabezaPanel}>
                 <span className="etiqueta">La base, enriquecida</span>
                 <span className="cifra text-xs text-[var(--bone-faint)]">
                   {clientes.length}
@@ -412,16 +422,10 @@ export default function Chispy() {
 
             {/* Razonamiento */}
             <div className="panel overflow-hidden">
-              <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
+              <div className={cabezaPanel}>
                 <span className="etiqueta">El agente está pensando</span>
-                {/* El muñequito del agente: quien de verdad está haciendo el trabajo. */}
-                <Image
-                  src="/mascota.png"
-                  alt="El agente de Chispy"
-                  width={23}
-                  height={32}
-                  className="opacity-90"
-                />
+                {/* El mono de los platillos: quien de verdad está haciendo el trabajo. */}
+                <Mascota className="h-11 w-11 md:h-16 md:w-16" />
               </div>
               <div ref={razonRef} className="max-h-[27rem] overflow-y-auto px-5 py-4">
                 {razonamiento.length === 0 ? (
@@ -559,6 +563,18 @@ function useConteo(valor: number, ms = 1200) {
 }
 
 /**
+ * El suelo del clamp de la cifra grande, según lo larga que sea.
+ *
+ * Solo manda en pantallas estrechas —de un portátil para arriba gana el 9.5vw,
+ * así que el proyector no se entera— y ahí el ancho del grotesco expandido es
+ * el que decide: medido, "$93.830.000" a 2.5rem ocupa 278px justos en una caja
+ * de 278 en un móvil de 375. Sin este escalón, una cifra de mil millones se
+ * sale de su caja.
+ */
+const sueloCifra = (cifra: string) =>
+  cifra.length > 12 ? "1.85rem" : cifra.length > 10 ? "2.1rem" : "2.5rem";
+
+/**
  * El titular.
  *
  * Lo primero que tiene que leer alguien cuando el análisis termina, y lo único
@@ -602,9 +618,19 @@ function Titular({
     <div className="lamina mb-10 overflow-hidden">
       <div className="px-6 py-9 md:px-10 md:py-12">
         <span className="etiqueta">Plata en riesgo</span>
-        {/* La cifra manda sobre todo: por encima del instrumento de arriba y
-            del propio nombre del producto. */}
-        <div className="cifra display mt-4 text-[clamp(2.5rem,9.5vw,8.5rem)] text-[var(--alarm)]">
+        {/*
+          La cifra manda sobre todo: por encima del instrumento de arriba y del
+          propio nombre del producto.
+
+          El suelo del clamp depende de lo larga que sea, no del capricho: el
+          grotesco expandido es ancho, y una cifra de mil millones a 2.5rem se
+          sale de un móvil de 375px. Se mide sobre el valor final, no sobre el
+          que está contando, para que el tamaño no salte durante la animación.
+        */}
+        <div
+          className="cifra display mt-4 text-[var(--alarm)]"
+          style={{ fontSize: `clamp(${sueloCifra(pesos(plata))}, 9.5vw, 8.5rem)` }}
+        >
           {pesos(plataViva)}
         </div>
         <p className="prosa mt-5 max-w-2xl text-sm leading-relaxed text-[var(--bone-dim)] md:text-base">
