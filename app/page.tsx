@@ -45,15 +45,16 @@ type Entrada =
       detalle?: string;
     };
 
-const TONO: Record<SegmentoRfm, string> = {
-  en_riesgo: "text-[var(--alarm)]",
-  perdido: "text-[var(--bone-faint)]",
-  campeon: "text-[var(--steady)]",
-  leal: "text-[var(--steady)]",
-  potencial: "text-[var(--amber)]",
-  nuevo: "text-[var(--amber)]",
-  dormido: "text-[var(--bone-dim)]",
-  sin_datos: "text-[var(--bone-faint)]",
+/** Un color por estado. Manda en la cinta y en la etiqueta de cada fila. */
+const COLOR: Record<SegmentoRfm, string> = {
+  en_riesgo: "var(--alarm)",
+  perdido: "var(--bone-faint)",
+  campeon: "var(--steady)",
+  leal: "var(--steady)",
+  potencial: "var(--amber)",
+  nuevo: "var(--amber)",
+  dormido: "var(--bone-dim)",
+  sin_datos: "var(--bone-faint)",
 };
 
 export default function Chispy() {
@@ -314,28 +315,37 @@ export default function Chispy() {
       {/* ---------------- Trabajo ---------------- */}
       {arrancado && (
         <>
-          <section className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--line)] lg:grid-cols-4">
-            <Metrica
-              etiqueta="Clientes leídos"
-              valor={`${clientes.length}`}
-              sufijo={`de ${total || "?"}`}
-            />
-            <Metrica etiqueta="Facturación en la base" valor={pesos(facturado)} />
-            <Metrica etiqueta="Clientes en riesgo" valor={`${enRiesgo.length}`} acento />
-            <Metrica etiqueta="Plata en riesgo" valor={pesos(plataEnRiesgo)} acento grande />
-          </section>
+          {/*
+            El instrumento. Una sola cifra manda —la plata que se está yendo— y
+            todo lo demás de esta pantalla existe para explicarla. Las otras
+            tres lecturas bajan a renglones de factura, que es lo que son.
+          */}
+          <section className="panel mt-8">
+            <div className="grid gap-px bg-[var(--line)] lg:grid-cols-[1.5fr_1fr]">
+              <div className="bg-[var(--surface)] px-6 py-7 md:px-8">
+                <span className="etiqueta">Plata en riesgo</span>
+                <div className="cifra display mt-3 text-[clamp(2.5rem,7vw,5rem)] text-[var(--alarm)]">
+                  {pesos(plataEnRiesgo)}
+                </div>
+                <p className="prosa mt-3 text-sm leading-relaxed text-[var(--bone-dim)]">
+                  {enRiesgo.length > 0
+                    ? `${enRiesgo.length} clientes que ya te compraron y llevan meses sin volver.`
+                    : "Todavía leyendo la base."}
+                </p>
+              </div>
 
-          {corriendo && (
-            <div className="relative mt-4 h-0.5 w-full overflow-hidden bg-[var(--line)]">
-              <div
-                className="h-full bg-[var(--amber)] transition-[width] duration-200"
-                style={{ width: total ? `${(clientes.length / total) * 100}%` : "0%" }}
-              />
-              {total > 0 && clientes.length === total && (
-                <div className="barrido absolute inset-0" />
-              )}
+              <div className="flex flex-col justify-center bg-[var(--surface)] px-6 py-5 md:px-8">
+                <Lectura
+                  etiqueta="Clientes leídos"
+                  valor={`${clientes.length} de ${total || "?"}`}
+                />
+                <Lectura etiqueta="Facturación en la base" valor={pesos(facturado)} />
+                <Lectura etiqueta="Clientes en riesgo" valor={`${enRiesgo.length}`} acento />
+              </div>
             </div>
-          )}
+
+            <Cinta clientes={clientes} total={total} />
+          </section>
 
           <section className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
             {/* Cascada */}
@@ -589,30 +599,75 @@ function Paso({ e, viva }: { e: Entrada; viva: boolean }) {
   );
 }
 
-function Metrica({
+/**
+ * La cinta.
+ *
+ * Es la firma de la pantalla. Cada cliente que entra deja su propia muesca: lo
+ * alto es lo que factura, el color es en qué estado está. Cuando termina de
+ * correr no queda una barra al 100%, queda la forma del negocio — y desde el
+ * fondo de la sala se ve lo único que hace falta ver, que las muescas más altas
+ * son rojas.
+ *
+ * También hace de barra de progreso: la tira crece hacia la derecha a medida
+ * que se lee la base, así que no hacen falta las dos cosas.
+ */
+function Cinta({ clientes, total }: { clientes: ClienteEnriquecido[]; total: number }) {
+  // El cliente más grande fija la altura; el resto se mide contra él.
+  const techo = Math.max(...clientes.map((c) => c.rfm.monto), 1);
+  const avance = total > 0 ? `${(clientes.length / total) * 100}%` : "100%";
+
+  return (
+    <div className="border-t border-[var(--line)] px-6 pb-5 pt-6 md:px-8">
+      {/*
+        Los datos de cada muesca están ya en la cascada de abajo, fila a fila y
+        en texto. Aquí sobran cuarenta nodos sin nombre para un lector de
+        pantalla: esto es la misma verdad, dibujada.
+      */}
+      <div aria-hidden className="flex h-20 items-end md:h-28">
+        <div className="flex h-full items-end gap-px" style={{ width: avance }}>
+          {clientes.map((c) => (
+            <span
+              key={c.id}
+              className="crece min-w-px flex-1 rounded-[1px]"
+              style={{
+                height: `${Math.max(4, (c.rfm.monto / techo) * 100)}%`,
+                background: COLOR[c.rfm.segmento],
+              }}
+              title={`${c.nombre ?? "sin nombre"} — ${ETIQUETAS_RFM[c.rfm.segmento]}, ${pesos(c.rfm.monto)}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      <p className="prosa mt-4 text-xs leading-relaxed text-[var(--bone-faint)]">
+        Cada muesca es un cliente. Lo alto es lo que te factura; lo rojo, lo que
+        se está yendo.
+      </p>
+    </div>
+  );
+}
+
+/** Un renglón de factura: la etiqueta, su guía punteada y la cifra. */
+function Lectura({
   etiqueta,
   valor,
-  sufijo,
   acento,
-  grande,
 }: {
   etiqueta: string;
   valor: string;
-  sufijo?: string;
   acento?: boolean;
-  grande?: boolean;
 }) {
   return (
-    <div className="bg-[var(--surface)] px-5 py-5">
-      <span className="etiqueta">{etiqueta}</span>
-      <div
-        className={`cifra display mt-2 ${
-          grande ? "text-3xl md:text-5xl" : "text-2xl md:text-4xl"
-        } ${acento ? "text-[var(--alarm)]" : "text-[var(--bone)]"}`}
+    <div className="flex items-baseline gap-3 py-2.5">
+      <span className="etiqueta shrink-0">{etiqueta}</span>
+      <span aria-hidden className="guia min-w-4 flex-1" />
+      <span
+        className={`cifra shrink-0 text-base md:text-lg ${
+          acento ? "text-[var(--alarm)]" : "text-[var(--bone)]"
+        }`}
       >
         {valor}
-      </div>
-      {sufijo && <span className="text-xs text-[var(--bone-faint)]">{sufijo}</span>}
+      </span>
     </div>
   );
 }
@@ -653,7 +708,16 @@ function Fila({ c }: { c: ClienteEnriquecido }) {
         ))}
       </span>
 
-      <span className={`w-24 shrink-0 text-right text-xs ${TONO[c.rfm.segmento]}`}>
+      {/* La etiqueta lleva su punto de color: el mismo con el que este cliente
+          aparece en la cinta, así una cosa explica la otra. */}
+      <span
+        className="flex w-24 shrink-0 items-center justify-end gap-1.5 text-right text-xs"
+        style={{ color: COLOR[c.rfm.segmento] }}
+      >
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: COLOR[c.rfm.segmento] }}
+        />
         {ETIQUETAS_RFM[c.rfm.segmento]}
       </span>
 

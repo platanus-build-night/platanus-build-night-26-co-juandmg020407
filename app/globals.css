@@ -141,6 +141,57 @@ body::before {
   font-variant-numeric: tabular-nums;
 }
 
+/* Guía punteada de factura: lleva la etiqueta hasta su cifra sin meter una
+   línea de tabla por medio. */
+.guia {
+  height: 1px;
+  background: repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px 4px);
+}
+
+/* --- El chrome de los paneles --- */
+
+/*
+ * Un instrumento no es una tarjeta. En vez del borde redondeado que llevan
+ * todos los paneles de todas partes, cada uno se encuadra con dos corchetes de
+ * registro en diagonal: la marca de una mira, no el contorno de una ficha.
+ */
+.panel {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface);
+}
+
+.panel::before,
+.panel::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  border: 0 solid var(--amber-deep);
+}
+
+.panel::before {
+  top: 0;
+  left: 0;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.panel::after {
+  right: 0;
+  bottom: 0;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+/* El foco se ve siempre: se navega esto con el teclado desde un escenario. */
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
 /* --- Movimiento --- */
 
 /* Entrada de cada fila de la cascada. */
@@ -188,22 +239,18 @@ body::before {
   animation: latido 1.5s ease-in-out infinite;
 }
 
-/* Barrido de luz sobre la barra de progreso. */
-@keyframes barrido {
+/* Cada muesca de la cinta se levanta desde su base al entrar. */
+@keyframes crece {
   from {
-    transform: translateX(-100%);
+    transform: scaleY(0);
   }
   to {
-    transform: translateX(320%);
+    transform: scaleY(1);
   }
 }
-.barrido::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 30%;
-  background: linear-gradient(90deg, transparent, rgba(255, 157, 46, 0.5), transparent);
-  animation: barrido 1.6s ease-in-out infinite;
+.crece {
+  animation: crece 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: bottom;
 }
 
 /* Cursor de escritura en el razonamiento del agente. */
