@@ -185,6 +185,41 @@ test("no deja doble puntuación al pegar los textos del agente", () => {
   assert.doesNotMatch(texto, /\.\./);
 });
 
+test("habla las cifras abreviadas que escribe el agente", () => {
+  // Salió así en producción: "$93.8M" el sintetizador lo lee "noventa y tres
+  // punto ocho eme".
+  const plan: PlanComercial = {
+    analisis: [],
+    resumen: "prueba",
+    segmentos: [
+      segmento({
+        descripcion: "10 clientes en riesgo con $93.8M de histórico",
+        oferta: "descuento para tickets entre $4.4M y $450K",
+      }),
+    ],
+  };
+
+  const texto = construirBriefing(datos({ plan }));
+
+  assert.match(texto, /94 millones de pesos/);
+  assert.match(texto, /4,4 millones de pesos/);
+  assert.match(texto, /450 mil pesos/);
+  assert.doesNotMatch(texto, /\$\d/);
+  assert.doesNotMatch(texto, /\d[MK]\b/);
+});
+
+test("no toca los montos que no llevan escala pegada", () => {
+  const plan: PlanComercial = {
+    analisis: [],
+    resumen: "prueba",
+    segmentos: [segmento({ oferta: "20% sobre $2.340.000 en Marzo" })],
+  };
+
+  const texto = construirBriefing(datos({ plan }));
+
+  assert.match(texto, /\$2\.340\.000 en Marzo/);
+});
+
 test("concuerda el verbo con el número de envíos reales", () => {
   const uno = construirBriefing(datos({ enviosReales: 1 }));
   assert.match(uno, /Ya salió un mensaje/);

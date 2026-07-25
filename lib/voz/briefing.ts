@@ -60,6 +60,28 @@ function plataHablada(monto: number): string {
 }
 
 /**
+ * Las cifras abreviadas del agente, dichas como se dicen.
+ *
+ * `plataHablada()` solo alcanza a las cifras que calculamos aquí. El plan trae
+ * además textos libres —"10 clientes en riesgo con $93.8M de histórico"— y ese
+ * "$93.8M" el sintetizador lo lee "noventa y tres punto ocho eme".
+ *
+ * Se traduce antes de recortar, no después: así el tope de caracteres cuenta lo
+ * que de verdad se va a oír, y el recorte no puede partir una cifra por la
+ * mitad.
+ */
+function hablarCifras(texto: string): string {
+  return texto.replace(
+    /\$\s?(\d+(?:[.,]\d+)?)\s?([MmKk])(?![a-zA-ZÀ-ÿ])/g,
+    (todo, cifra: string, escala: string) => {
+      const base = Number(cifra.replace(",", "."));
+      if (!Number.isFinite(base)) return todo;
+      return plataHablada(base * (/[Mm]/.test(escala) ? 1_000_000 : 1_000));
+    },
+  );
+}
+
+/**
  * Deja el fragmento presentable para el oído: sin puntuación colgando y sin
  * incisos a medias.
  *
@@ -135,11 +157,11 @@ export function construirBriefing(datos: DatosBriefing): string {
 
   if (prioritario) {
     lineas.push({
-      texto: `La prioridad es el grupo ${recortar(prioritario.nombre, 60)}: ${frase(recortar(prioritario.descripcion, 130))}`,
+      texto: `La prioridad es el grupo ${recortar(hablarCifras(prioritario.nombre), 60)}: ${frase(recortar(hablarCifras(prioritario.descripcion), 130))}`,
       descarte: 2,
     });
     lineas.push({
-      texto: `La acción recomendada es ${recortar(prioritario.oferta, 150)}, por ${prioritario.canal}.`,
+      texto: `La acción recomendada es ${recortar(hablarCifras(prioritario.oferta), 150)}, por ${prioritario.canal}.`,
       descarte: 0,
     });
   }
