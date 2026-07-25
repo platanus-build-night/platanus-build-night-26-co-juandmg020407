@@ -17,12 +17,17 @@
 const API = "https://api.elevenlabs.io/v1/text-to-speech";
 
 /**
- * Voz y modelo por defecto, verificados con el MCP oficial de ElevenLabs sobre
- * esta misma cuenta. Las variables de entorno mandan sobre estos valores: si
- * mañana la voz cambia de dueño o el plan deja de incluir el modelo, se arregla
- * en Vercel sin tocar el código.
+ * Voz y modelo por defecto, verificados contra esta misma cuenta. Las variables
+ * de entorno mandan sobre estos valores: si mañana la voz cambia de dueño o el
+ * plan deja de incluir el modelo, se arregla en Vercel sin tocar el código.
+ *
+ * Sarah es `premade`, y eso es deliberado: el plan gratuito de la cuenta NO deja
+ * usar voces de la biblioteca por API (402 `paid_plan_required`), ni siquiera
+ * tras añadirlas. Habría preferido una voz colombiana —se probó Karly—, pero
+ * ninguna funciona sin subir de plan. Si algún día se sube, basta con cambiar
+ * ELEVENLABS_VOICE_ID en Vercel.
  */
-const VOZ_POR_DEFECTO = "";
+const VOZ_POR_DEFECTO = "EXAVITQu4vr4xnSDxMaL";
 const MODELO_POR_DEFECTO = "eleven_flash_v2_5";
 
 /** El TTS no puede colgar el botón: pasado este tiempo se corta y se avisa. */
@@ -53,6 +58,11 @@ function diagnosticar(estado: number, cuerpo: string): string {
 
   if (codigo === "quota_exceeded") return "Se acabaron los créditos de voz de la cuenta.";
   if (codigo === "voice_not_found") return "La voz configurada ya no existe.";
+  // El plan gratuito no deja usar voces de la biblioteca por API, solo las
+  // `premade`. Da 402 y no 401, así que sin este caso el dueño leería un
+  // "no respondió bien" que no le dice qué arreglar.
+  if (codigo === "payment_required" || estado === 402)
+    return "El plan de la cuenta de voz no permite esta voz. Usa una voz premade o sube de plan.";
   if (codigo === "invalid_api_key" || estado === 401)
     return "La cuenta de voz rechazó la credencial.";
   if (estado === 429) return "Demasiadas peticiones de voz seguidas. Espera unos segundos.";
