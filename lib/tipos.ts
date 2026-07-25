@@ -1,4 +1,4 @@
-/** Tipos compartidos. Espejo de supabase/schema.sql. */
+/** Tipos compartidos: el vocabulario que hablan la ingesta, el agente y la pantalla. */
 
 import type { ZonaResuelta } from "./data/bogota.ts";
 

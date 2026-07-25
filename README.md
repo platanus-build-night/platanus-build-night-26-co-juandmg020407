@@ -58,6 +58,10 @@ Se sube un CSV —el que exporta el negocio, sin limpiar— y Chispy:
    como una persona — corto, cálido, con memoria del hilo — y lleva la
    conversación hacia agendar la videollamada, que es donde la joyería cierra.
    Si le preguntan si es un bot, no miente.
+6. **Y lo cuenta en voz alta.** El plan termina en un briefing de medio minuto
+   que el dueño del negocio escucha en lugar de leer: qué encontró, cuánta
+   plata hay en juego y por dónde empezar. Nunca suena solo —sin clic no hay
+   audio— y si la voz falla, el texto sigue en pantalla.
 
 El razonamiento y las acciones del agente se emiten en streaming mientras
 ocurren, así que el dueño del negocio ve *por qué* y *cómo* se tomó cada
@@ -101,6 +105,7 @@ CSV → parseo → RFM ────┐             ┌ ver_clientes
 | `lib/whatsapp.ts` | Envío por Twilio, con los códigos de error traducidos a algo accionable |
 | `app/api/procesar` | El pipeline entero servido como stream NDJSON, evento a evento |
 | `app/api/whatsapp/entrante` | Valentina: responde los WhatsApp entrantes con memoria del hilo (leída de Twilio) y firma validada |
+| `lib/voz/` | El briefing hablado: el guion que se escribe para ser dicho, y la firma que impide que nadie más gaste la cuota de voz |
 
 **El guardarraíl del envío es de código, no de prompt:** el agente decide a
 quién escribir y qué decirle, pero el destino físico de todo mensaje es siempre
@@ -125,10 +130,16 @@ npm run dev
 | `TWILIO_ACCOUNT_SID` · `TWILIO_AUTH_TOKEN` | Envío por WhatsApp |
 | `TWILIO_WHATSAPP_FROM` | Número del sandbox, con el prefijo `whatsapp:` |
 | `TWILIO_WHATSAPP_TEST` | Guardarraíl: único destino real de los envíos del agente |
+| `ELEVENLABS_API_KEY` · `ELEVENLABS_VOICE_ID` | El briefing hablado |
 | `CHISPY_MODELO` | Modelo a usar (por defecto `claude-opus-5`) |
 
 Sin credenciales de Twilio la aplicación funciona igual: los envíos del agente
-se simulan y se marcan como simulados en pantalla.
+se simulan y se marcan como simulados en pantalla. Sin las de ElevenLabs
+también: el botón de escuchar no aparece y el briefing se queda escrito.
+
+Para que Valentina conteste hace falta además apuntar el *inbound URL* del
+sandbox de WhatsApp a `https://<tu-dominio>/api/whatsapp/entrante` por `POST`,
+con esa URL exacta: la firma de Twilio se valida contra ella.
 
 Hay una base de ejemplo en `public/ejemplo/` —una veterinaria de 40 clientes—
 para probarlo sin datos propios. Y si la red falla en plena demo,
