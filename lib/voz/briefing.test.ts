@@ -184,3 +184,38 @@ test("no deja doble puntuación al pegar los textos del agente", () => {
 
   assert.doesNotMatch(texto, /\.\./);
 });
+
+test("concuerda el verbo con el número de envíos reales", () => {
+  const uno = construirBriefing(datos({ enviosReales: 1 }));
+  assert.match(uno, /Ya salió un mensaje/);
+
+  const varios = construirBriefing(datos({ enviosReales: 2 }));
+  assert.match(varios, /Ya salieron 2 mensajes/);
+  assert.doesNotMatch(varios, /Ya salió \d/);
+});
+
+test("no deja incisos a medias al recortar la oferta del agente", () => {
+  // Caso salido de producción: el agente enumeró nombres entre paréntesis y el
+  // recorte a 150 caracteres partía la lista, dejando "(Camila, Felipe" suelto.
+  const plan: PlanComercial = {
+    analisis: [],
+    resumen: "prueba",
+    segmentos: [
+      segmento({
+        oferta:
+          "Contacto personalizado ofreciendo pieza o descuento especial de reactivación, " +
+          "priorizando primero a los de mayor monto histórico " +
+          "(Camila, Felipe, Andrea, Sofía y Martín)",
+      }),
+    ],
+  };
+
+  const texto = construirBriefing(datos({ plan }));
+
+  assert.equal(
+    (texto.match(/\(/g) ?? []).length,
+    (texto.match(/\)/g) ?? []).length,
+    `paréntesis descompensados en: ${texto}`,
+  );
+  assert.doesNotMatch(texto, /\(Camila/);
+});

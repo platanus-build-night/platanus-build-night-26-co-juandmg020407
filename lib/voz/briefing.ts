@@ -59,17 +59,35 @@ function plataHablada(monto: number): string {
   return `${n} pesos`;
 }
 
+/**
+ * Deja el fragmento presentable para el oído: sin puntuación colgando y sin
+ * incisos a medias.
+ *
+ * Un paréntesis que el recorte dejó abierto se oye como una frase rota. En
+ * producción salió tal cual: "priorizando primero a los de mayor monto
+ * histórico (Camila, Felipe, por whatsapp". Cortar el inciso entero pierde un
+ * par de nombres; dejarlo a medias pierde la frase.
+ */
+function pulir(fragmento: string): string {
+  let texto = fragmento;
+
+  while (
+    (texto.match(/\(/g) ?? []).length > (texto.match(/\)/g) ?? []).length
+  ) {
+    texto = texto.slice(0, texto.lastIndexOf("("));
+  }
+
+  return texto.replace(/[.;,\s]+$/, "").trim();
+}
+
 /** Corta en el último espacio para no partir palabras, y limpia la puntuación. */
 function recortar(texto: string, max: number): string {
   const limpio = texto.replace(/\s+/g, " ").trim();
-  if (limpio.length <= max) return limpio.replace(/[.;,\s]+$/, "");
+  if (limpio.length <= max) return pulir(limpio);
 
   const corte = limpio.slice(0, max);
   const espacio = corte.lastIndexOf(" ");
-  return (espacio > max * 0.6 ? corte.slice(0, espacio) : corte).replace(
-    /[.;,\s]+$/,
-    "",
-  );
+  return pulir(espacio > max * 0.6 ? corte.slice(0, espacio) : corte);
 }
 
 /** Une un texto libre del agente al guion sin heredar su puntuación final. */
@@ -127,9 +145,11 @@ export function construirBriefing(datos: DatosBriefing): string {
   }
 
   if (enviosReales > 0) {
-    const cuantos = enviosReales === 1 ? "un mensaje" : `${enviosReales} mensajes`;
+    // El verbo concuerda: en voz alta, "ya salió 2 mensajes" chirría.
+    const cuantos =
+      enviosReales === 1 ? "Ya salió un mensaje" : `Ya salieron ${enviosReales} mensajes`;
     lineas.push({
-      texto: `Ya salió ${cuantos} de verdad por WhatsApp, al número de prueba.`,
+      texto: `${cuantos} de verdad por WhatsApp, al número de prueba.`,
       descarte: 1,
     });
   } else if (enviosSimulados > 0) {
