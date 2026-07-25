@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Ojos, type EstadoOjos } from "@/components/Ojos.tsx";
+import { Voz } from "@/components/Voz.tsx";
 import { ETIQUETAS_RFM } from "@/lib/enriquecimiento/rfm.ts";
 import type {
   ClienteEnriquecido,
@@ -59,6 +60,10 @@ export default function Chispy() {
   const [clientes, setClientes] = useState<ClienteEnriquecido[]>([]);
   const [razonamiento, setRazonamiento] = useState<Entrada[]>([]);
   const [plan, setPlan] = useState<PlanComercial | null>(null);
+  /** El guion del briefing hablado, tal y como lo firmó el servidor. */
+  const [briefing, setBriefing] = useState<{ texto: string; firma: string | null } | null>(
+    null,
+  );
   const [fase, setFase] = useState("");
   const [total, setTotal] = useState(0);
   const [avisos, setAvisos] = useState<string[]>([]);
@@ -97,6 +102,7 @@ export default function Chispy() {
       setClientes([]);
       setRazonamiento([]);
       setPlan(null);
+      setBriefing(null);
       setAvisos([]);
       setCorriendo(true);
       setFase("Leyendo el archivo");
@@ -148,6 +154,9 @@ export default function Chispy() {
             break;
           case "plan":
             setPlan(ev.plan);
+            break;
+          case "briefing":
+            setBriefing({ texto: ev.texto, firma: ev.firma });
             break;
           case "error":
             setAvisos((prev) => [...prev, ev.mensaje]);
@@ -386,6 +395,18 @@ export default function Chispy() {
                   {plan.resumen}
                 </p>
               </div>
+
+              {/*
+                El briefing hablado. Llega un instante después del plan, por eso
+                se monta aparte: el plan no espera a la voz para pintarse.
+              */}
+              {briefing && (
+                <div className="sube mb-10">
+                  {/* La key remonta el reproductor con cada briefing nuevo: así
+                      nunca queda sonando el audio del análisis anterior. */}
+                  <Voz key={briefing.texto} texto={briefing.texto} firma={briefing.firma} />
+                </div>
+              )}
 
               <div className="grid gap-5 lg:grid-cols-2">
                 {plan.segmentos.map((s, i) => (

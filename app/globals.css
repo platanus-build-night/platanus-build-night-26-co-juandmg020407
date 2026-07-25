@@ -270,6 +270,28 @@ body::before {
   animation: ojos-parpadeo 6.4s ease-in-out infinite;
 }
 
+/* --- La voz --- */
+
+/*
+ * Barras que se mueven mientras suena el briefing. En una sala grande el audio
+ * llega, pero desde el fondo no se distingue si el reproductor está sonando o
+ * congelado: esto lo dice sin sonido. Cada barra lleva su propio desfase (ver
+ * `animationDelay` en Voz.tsx) para que no latan al unísono como un metrónomo.
+ */
+@keyframes onda {
+  0%,
+  100% {
+    transform: scaleY(0.28);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.onda {
+  animation: onda 0.9s ease-in-out infinite;
+  transform-origin: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
