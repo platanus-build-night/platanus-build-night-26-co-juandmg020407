@@ -889,11 +889,21 @@ function VistoSimple() {
 }
 
 /** Un mensaje del hilo. Lo que dice el negocio va a la derecha; el cliente, a la izquierda. */
-type MensajeHilo = { rol: "negocio" | "cliente"; texto: string; hora: string };
+type MensajeHilo = { rol: "negocio" | "cliente"; texto: string; hora: string; ts: number };
 
 /** Cada cuánto se pregunta por el hilo, y cuánto tiempo se sigue preguntando. */
 const REFRESCO_HILO_MS = 2000;
 const VENTANA_HILO_MS = 5 * 60 * 1000;
+
+/**
+ * Desde cuándo se mira el hilo.
+ *
+ * La conversación vive en Twilio y no se borra: los ensayos siguen ahí. Limpiar
+ * es correr esta raya hasta ahora mismo y quedarse con lo de después. Va en
+ * localStorage y no en el estado porque la raya tiene que sobrevivir a la
+ * recarga: se limpia antes de presentar, no durante.
+ */
+const CORTE_HILO = "chispy:corte-hilo";
 
 /**
  * La conversación en vivo.
@@ -910,7 +920,19 @@ const VENTANA_HILO_MS = 5 * 60 * 1000;
  */
 function ConversacionViva() {
   const [mensajes, setMensajes] = useState<MensajeHilo[]>([]);
+  // La raya se lee de una vez al montar. Este panel solo existe después de que
+  // el agente haya enviado algo, así que aquí siempre hay navegador: no hay
+  // servidor con el que descuadrarse.
+  const [corte, setCorte] = useState(
+    () => Number(window.localStorage.getItem(CORTE_HILO)) || 0,
+  );
   const hiloRef = useRef<HTMLDivElement>(null);
+
+  const limpiar = useCallback(() => {
+    const ahora = Date.now();
+    window.localStorage.setItem(CORTE_HILO, String(ahora));
+    setCorte(ahora);
+  }, []);
 
   useEffect(() => {
     let vivo = true;
@@ -945,21 +967,32 @@ function ConversacionViva() {
     };
   }, []);
 
+  const visibles = mensajes.filter((m) => m.ts > corte);
+
   // Que el último mensaje esté siempre a la vista: es el que la sala espera.
   useEffect(() => {
     hiloRef.current?.scrollTo({ top: hiloRef.current.scrollHeight, behavior: "smooth" });
-  }, [mensajes.length]);
+  }, [visibles.length]);
 
-  if (mensajes.length === 0) return null;
+  if (visibles.length === 0) return null;
 
   return (
     <section className="panel sube mt-8 overflow-hidden">
       <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
         <span className="etiqueta">Conversación en vivo</span>
-        <span className="flex items-center gap-2 text-[10px] text-[var(--bone-faint)]">
-          <span className="latido inline-block h-1.5 w-1.5 rounded-full bg-[var(--steady)]" />
-          Valentina está contestando
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-2 text-[10px] text-[var(--bone-faint)]">
+            <span className="latido inline-block h-1.5 w-1.5 rounded-full bg-[var(--steady)]" />
+            Valentina está contestando
+          </span>
+          {/* Deja atrás los ensayos. No borra nada en Twilio: solo mueve la raya. */}
+          <button
+            onClick={limpiar}
+            className="etiqueta rounded-full border border-[var(--line)] px-3 py-1 text-[10px] text-[var(--bone-faint)] transition-colors hover:border-[var(--amber)] hover:text-[var(--bone)]"
+          >
+            Limpiar
+          </button>
+        </div>
       </div>
 
       <div ref={hiloRef} className="max-h-[24rem] overflow-y-auto bg-[#0b141a] px-4 py-4">
@@ -968,7 +1001,7 @@ function ConversacionViva() {
           crece, así que las burbujas ya pintadas no se remontan y la animación
           de entrada le toca únicamente al mensaje nuevo.
         */}
-        {mensajes.map((m, i) => (
+        {visibles.map((m, i) => (
           <Burbuja key={i} m={m} />
         ))}
       </div>

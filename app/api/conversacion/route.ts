@@ -28,6 +28,13 @@ export type MensajeHilo = {
   rol: "negocio" | "cliente";
   texto: string;
   hora: string;
+  /**
+   * Cuándo se creó, en milisegundos. La pantalla lo necesita para poder dejar
+   * atrás las conversaciones de los ensayos: el hilo vive en Twilio y no se
+   * borra, así que limpiar es marcar desde dónde se mira. No identifica a
+   * nadie — la hora ya sale escrita en la burbuja.
+   */
+  ts: number;
 };
 
 /**
@@ -78,6 +85,7 @@ export async function GET() {
         rol: m.from === desde ? ("negocio" as const) : ("cliente" as const),
         texto: m.body.trim(),
         hora: horaEnBogota(m.dateCreated),
+        ts: m.dateCreated ? new Date(m.dateCreated).getTime() : 0,
       }));
 
     return hilo(mensajes);

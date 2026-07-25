@@ -342,20 +342,23 @@ export async function ejecutarAgente(
     run: (entrega) => {
       emitir({ tipo: "herramienta", nombre: "entregar_plan", detalle: `${entrega.segmentos.length} segmentos` });
 
-      // El esquema garantiza la forma; esto garantiza que los IDs existen.
+      /*
+       * El esquema garantiza la forma; esto garantiza que los IDs existen.
+       *
+       * Lo que se descarta se anota en el registro del servidor y no en la
+       * pantalla: es higiene de este guardarraíl, no algo que le haya salido
+       * mal a quien está mirando. El segmento simplemente no aparece, que es
+       * exactamente lo que tiene que pasar.
+       */
       const segmentos = entrega.segmentos
         .map((s) => {
           const validos = s.clienteIds.filter((id) => porId.has(id));
           if (validos.length !== s.clienteIds.length) {
-            emitir({
-              tipo: "error",
-              mensaje: `Se descartaron ${s.clienteIds.length - validos.length} IDs inexistentes en "${s.nombre}".`,
-            });
+            console.warn(
+              `entregar_plan: ${s.clienteIds.length - validos.length} IDs inexistentes en "${s.nombre}".`,
+            );
           } else if (s.clienteIds.length === 0) {
-            emitir({
-              tipo: "error",
-              mensaje: `El segmento "${s.nombre}" llegó sin clientes y se descartó.`,
-            });
+            console.warn(`entregar_plan: el segmento "${s.nombre}" llegó sin clientes.`);
           }
           return { ...s, clienteIds: validos };
         })
