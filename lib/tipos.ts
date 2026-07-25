@@ -88,6 +88,19 @@ export type EventoChispy =
   | { tipo: "cliente"; cliente: ClienteEnriquecido; indice: number }
   | { tipo: "fase"; nombre: string; detalle?: string }
   | { tipo: "razonamiento"; texto: string }
+  /** El agente invocó una herramienta. Se pinta en el momento, no al final. */
+  | { tipo: "herramienta"; nombre: string; detalle: string }
+  | { tipo: "herramienta_ok"; nombre: string; detalle: string }
+  /**
+   * Un envío decidido por el agente. `enviado` = salió de verdad por Twilio
+   * (siempre al número de prueba); `simulado` = cualquier otro caso.
+   */
+  | {
+      tipo: "whatsapp";
+      cliente: string;
+      estado: "enviado" | "simulado" | "fallo";
+      detalle?: string;
+    }
   | { tipo: "plan"; plan: PlanComercial }
   | { tipo: "error"; mensaje: string }
   | { tipo: "fin" };

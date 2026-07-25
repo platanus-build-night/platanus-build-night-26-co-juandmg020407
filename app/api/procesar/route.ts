@@ -9,7 +9,7 @@
 import { parsearCsv } from "@/lib/ingesta/csv.ts";
 import { resolverZona } from "@/lib/data/bogota.ts";
 import { calcularRfm } from "@/lib/enriquecimiento/rfm.ts";
-import { planificar } from "@/lib/agente/planificador.ts";
+import { ejecutarAgente } from "@/lib/agente/agente.ts";
 import type { ClienteEnriquecido, EventoChispy, Fuente } from "@/lib/tipos.ts";
 
 export const runtime = "nodejs";
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
 
         emitir({ tipo: "fase", nombre: "El agente está decidiendo a quién contactar" });
 
-        await planificar(enriquecidos, negocio?.trim() || "una pyme de Bogotá", emitir);
+        await ejecutarAgente(enriquecidos, negocio?.trim() || "una pyme de Bogotá", emitir);
 
         emitir({ tipo: "fin" });
       } catch (error) {
