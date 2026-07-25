@@ -57,6 +57,21 @@ const COLOR: Record<SegmentoRfm, string> = {
   sin_datos: "var(--bone-faint)",
 };
 
+/** Lo que el agente cuantificó con calcular_plata_en_riesgo. */
+type PlataCuantificada = { pesos: number; clientes: number };
+
+/**
+ * El detalle de la herramienta viaja ya formateado para la bitácora
+ * ("10 clientes · $93.830.000"). Se lee de vuelta a números aquí, en el
+ * cliente, en vez de cambiar el contrato del evento por una cifra de pantalla.
+ */
+function leerPlata(detalle: string): PlataCuantificada | null {
+  const m = detalle.match(/^(\d+)\s+clientes?\s+·\s+\$([\d.]+)/);
+  if (!m) return null;
+  // Formato es-CO: el punto es separador de miles, no decimal.
+  return { clientes: Number(m[1]), pesos: Number(m[2].replaceAll(".", "")) };
+}
+
 export default function Chispy() {
   const [clientes, setClientes] = useState<ClienteEnriquecido[]>([]);
   const [razonamiento, setRazonamiento] = useState<Entrada[]>([]);
@@ -67,6 +82,12 @@ export default function Chispy() {
   );
   const [fase, setFase] = useState("");
   const [total, setTotal] = useState(0);
+  /**
+   * La cifra que el propio agente cuantificó con su herramienta, no la que
+   * calcula esta pantalla por su cuenta. Vale la última: si vuelve a medir, es
+   * porque cambió de grupo.
+   */
+  const [plataAgente, setPlataAgente] = useState<PlataCuantificada | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [corriendo, setCorriendo] = useState(false);
   const [negocio, setNegocio] = useState(
@@ -107,6 +128,7 @@ export default function Chispy() {
       setPlan(null);
       setBriefing(null);
       setAvisos([]);
+      setPlataAgente(null);
       setCorriendo(true);
       setFase("Leyendo el archivo");
 
@@ -131,6 +153,12 @@ export default function Chispy() {
             ]);
             break;
           case "herramienta_ok":
+            // La plata que cuantifica el agente no se queda en el renglón de
+            // la bitácora: es el titular con el que termina el análisis.
+            if (ev.nombre === "calcular_plata_en_riesgo") {
+              const medido = leerPlata(ev.detalle);
+              if (medido) setPlataAgente(medido);
+            }
             // Cierra la última llamada abierta de esa herramienta.
             setRazonamiento((prev) => {
               const sig = [...prev];
@@ -235,6 +263,13 @@ export default function Chispy() {
   const enRiesgo = clientes.filter((c) => c.rfm.segmento === "en_riesgo");
   const plataEnRiesgo = enRiesgo.reduce((s, c) => s + c.rfm.monto, 0);
   const facturado = clientes.reduce((s, c) => s + c.rfm.monto, 0);
+
+  // Los envíos del titular se cuentan de la misma bitácora que se ve arriba:
+  // una cifra que no cuadre con lo que está escrito en pantalla es peor que
+  // no tenerla.
+  const envios = razonamiento.filter((e) => e.clase === "whatsapp");
+  const enviados = envios.filter((e) => e.estado === "enviado").length;
+  const simulados = envios.filter((e) => e.estado === "simulado").length;
 
   return (
     <main className="relative z-10 flex-1 px-6 py-8 md:px-12 lg:px-16">
@@ -407,6 +442,21 @@ export default function Chispy() {
           {/* ---------------- El plan ---------------- */}
           {plan && (
             <section ref={planRef} className="sube mt-16 scroll-mt-8">
+              {/*
+                El titular. Va antes que el plan porque es la respuesta: el
+                plan es el cómo. La plata sale de lo que midió el agente con su
+                herramienta, no de la cuenta que hace esta pantalla — si él
+                decidió sobre otro grupo, la cifra del titular es la suya.
+              */}
+              <Titular
+                plata={plataAgente?.pesos ?? plataEnRiesgo}
+                clientesPlata={plataAgente?.clientes ?? enRiesgo.length}
+                medidaPorElAgente={plataAgente !== null}
+                analizados={total || clientes.length}
+                enviados={enviados}
+                simulados={simulados}
+              />
+
               <div className="mb-8 border-t border-[var(--line)] pt-8">
                 <span className="etiqueta">El plan de esta semana</span>
                 <p className="prosa mt-4 max-w-3xl text-lg leading-relaxed text-[var(--bone)] md:text-2xl">
@@ -436,6 +486,143 @@ export default function Chispy() {
         </>
       )}
     </main>
+  );
+}
+
+const prefiereQuieto = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * Cuenta una cifra desde cero al aparecer.
+ *
+ * Es el único adorno del titular, y está por una razón: una cifra que se planta
+ * es un número, una que sube es una cuenta corriendo. Con prefers-reduced-motion
+ * aparece ya puesta.
+ */
+function useConteo(valor: number, ms = 1200) {
+  const [n, setN] = useState(() => (prefiereQuieto() ? valor : 0));
+
+  useEffect(() => {
+    if (prefiereQuieto()) {
+      setN(valor);
+      return;
+    }
+
+    let cuadro = 0;
+    const t0 = performance.now();
+
+    const paso = (t: number) => {
+      const p = Math.min(1, (t - t0) / ms);
+      // Frenada fuerte al final: llega enseguida al orden de magnitud —que es
+      // lo que hay que leer— y las últimas cifras se asientan solas.
+      setN(valor * (1 - (1 - p) ** 4));
+      if (p < 1) cuadro = requestAnimationFrame(paso);
+    };
+
+    cuadro = requestAnimationFrame(paso);
+    return () => cancelAnimationFrame(cuadro);
+  }, [valor, ms]);
+
+  return n;
+}
+
+/**
+ * El titular.
+ *
+ * Lo primero que tiene que leer alguien cuando el análisis termina, y lo único
+ * que se ve desde el fondo de la sala: cuánta plata está en juego, sobre
+ * cuántos clientes se miró y cuántos mensajes salieron ya. La plata es más
+ * grande que ninguna otra cosa de la pantalla a propósito — el resto de esta
+ * página existe para explicarla.
+ */
+function Titular({
+  plata,
+  clientesPlata,
+  medidaPorElAgente,
+  analizados,
+  enviados,
+  simulados,
+}: {
+  plata: number;
+  clientesPlata: number;
+  /** Falso solo si el agente cerró el plan sin llegar a cuantificar nada. */
+  medidaPorElAgente: boolean;
+  analizados: number;
+  enviados: number;
+  simulados: number;
+}) {
+  const plataViva = useConteo(plata);
+  const analizadosVivos = useConteo(analizados);
+
+  // Sin ningún envío real el titular no puede decir "enviados": lo que hubo
+  // fueron ensayos, y delante de un jurado esa diferencia lo es todo.
+  const soloSimulados = enviados === 0 && simulados > 0;
+
+  const notaEnvios = soloSimulados
+    ? "Ninguno salió de verdad: no había número de prueba configurado."
+    : enviados === 0
+      ? "El agente cerró el plan sin escribirle a nadie todavía."
+      : simulados > 0
+        ? `Salieron de verdad, redirigidos al número de prueba. Otros ${simulados} quedaron simulados.`
+        : "Salieron de verdad, redirigidos al número de prueba.";
+
+  return (
+    <div className="lamina mb-10 overflow-hidden">
+      <div className="px-6 py-9 md:px-10 md:py-12">
+        <span className="etiqueta">Plata en riesgo</span>
+        {/* La cifra manda sobre todo: por encima del instrumento de arriba y
+            del propio nombre del producto. */}
+        <div className="cifra display mt-4 text-[clamp(2.5rem,9.5vw,8.5rem)] text-[var(--alarm)]">
+          {pesos(plataViva)}
+        </div>
+        <p className="prosa mt-5 max-w-2xl text-sm leading-relaxed text-[var(--bone-dim)] md:text-base">
+          {medidaPorElAgente
+            ? `Lo que suman los ${clientesPlata} clientes que el agente midió antes de decidir a quién escribirle.`
+            : `Lo que suman los ${clientesPlata} clientes de la base que ya te compraron y se están yendo.`}
+        </p>
+      </div>
+
+      <div className="grid gap-px border-t border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
+        <Marca
+          etiqueta="Clientes analizados"
+          valor={`${analizadosVivos}`}
+          nota="Toda la base, enriquecida por zona y comportamiento."
+        />
+        <Marca
+          etiqueta={soloSimulados ? "WhatsApp simulados" : "WhatsApp enviados"}
+          valor={`${soloSimulados ? simulados : enviados}`}
+          color={soloSimulados ? "var(--amber)" : "var(--steady)"}
+          nota={notaEnvios}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Una de las dos cifras de apoyo del titular. */
+function Marca({
+  etiqueta,
+  valor,
+  nota,
+  color = "var(--bone)",
+}: {
+  etiqueta: string;
+  valor: string;
+  nota: string;
+  color?: string;
+}) {
+  return (
+    <div className="bg-[var(--surface)] px-6 py-6 md:px-10 md:py-7">
+      <span className="etiqueta">{etiqueta}</span>
+      <div
+        className="cifra display mt-2 text-[clamp(1.75rem,4vw,3rem)]"
+        style={{ color }}
+      >
+        {valor}
+      </div>
+      <p className="prosa mt-2 text-xs leading-relaxed text-[var(--bone-faint)]">{nota}</p>
+    </div>
   );
 }
 
