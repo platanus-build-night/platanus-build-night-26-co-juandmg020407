@@ -27,6 +27,22 @@ import type {
 
 const pesos = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
 
+/**
+ * El panel del agente ya no es solo texto: intercala lo que dice con lo que
+ * HACE. Cada llamada a herramienta y cada envío entran aquí en el orden real
+ * en que ocurrieron — eso es lo que distingue ver trabajar a un agente de leer
+ * un informe.
+ */
+type Entrada =
+  | { clase: "texto"; texto: string }
+  | { clase: "tool"; nombre: string; detalle: string; ok: boolean }
+  | {
+      clase: "whatsapp";
+      cliente: string;
+      estado: "enviado" | "simulado" | "fallo";
+      detalle?: string;
+    };
+
 const TONO: Record<SegmentoRfm, string> = {
   en_riesgo: "text-[var(--alarm)]",
   perdido: "text-[var(--bone-faint)]",
@@ -40,7 +56,7 @@ const TONO: Record<SegmentoRfm, string> = {
 
 export default function Chispy() {
   const [clientes, setClientes] = useState<ClienteEnriquecido[]>([]);
-  const [razonamiento, setRazonamiento] = useState<string[]>([]);
+  const [razonamiento, setRazonamiento] = useState<Entrada[]>([]);
   const [plan, setPlan] = useState<PlanComercial | null>(null);
   const [fase, setFase] = useState("");
   const [total, setTotal] = useState(0);
@@ -120,7 +136,38 @@ export default function Chispy() {
                 setFase(ev.nombre);
                 break;
               case "razonamiento":
-                setRazonamiento((prev) => [...prev, ev.texto]);
+                setRazonamiento((prev) => [...prev, { clase: "texto", texto: ev.texto }]);
+                break;
+              case "herramienta":
+                setRazonamiento((prev) => [
+                  ...prev,
+                  { clase: "tool", nombre: ev.nombre, detalle: ev.detalle, ok: false },
+                ]);
+                break;
+              case "herramienta_ok":
+                // Cierra la última llamada abierta de esa herramienta.
+                setRazonamiento((prev) => {
+                  const sig = [...prev];
+                  for (let i = sig.length - 1; i >= 0; i--) {
+                    const e = sig[i];
+                    if (e.clase === "tool" && e.nombre === ev.nombre && !e.ok) {
+                      sig[i] = { ...e, ok: true, detalle: ev.detalle };
+                      break;
+                    }
+                  }
+                  return sig;
+                });
+                break;
+              case "whatsapp":
+                setRazonamiento((prev) => [
+                  ...prev,
+                  {
+                    clase: "whatsapp",
+                    cliente: ev.cliente,
+                    estado: ev.estado,
+                    detalle: ev.detalle,
+                  },
+                ]);
                 break;
               case "plan":
                 setPlan(ev.plan);
@@ -280,15 +327,8 @@ export default function Chispy() {
                     Esperando a terminar de leer la base…
                   </p>
                 ) : (
-                  razonamiento.map((t, i) => (
-                    <p
-                      key={i}
-                      className={`prosa entra mb-3 text-sm leading-relaxed text-[var(--bone-dim)] ${
-                        i === razonamiento.length - 1 && corriendo ? "cursor" : ""
-                      }`}
-                    >
-                      {t}
-                    </p>
+                  razonamiento.map((e, i) => (
+                    <Paso key={i} e={e} viva={i === razonamiento.length - 1 && corriendo} />
                   ))
                 )}
               </div>
@@ -435,6 +475,60 @@ function Tarjeta({ s, orden }: { s: Segmento; orden: number }) {
         {s.justificacion}
       </p>
     </article>
+  );
+}
+
+/** Una entrada de la bitácora del agente: dice algo, llama una herramienta o envía. */
+function Paso({ e, viva }: { e: Entrada; viva: boolean }) {
+  if (e.clase === "texto") {
+    return (
+      <p
+        className={`prosa entra mb-3 text-sm leading-relaxed text-[var(--bone-dim)] ${
+          viva ? "cursor" : ""
+        }`}
+      >
+        {e.texto}
+      </p>
+    );
+  }
+
+  if (e.clase === "tool") {
+    return (
+      <p className="entra mb-3 flex items-baseline gap-2 text-xs">
+        <span className={e.ok ? "text-[var(--steady)]" : "latido text-[var(--amber)]"}>▸</span>
+        <span className="shrink-0 text-[var(--amber)]">{e.nombre}</span>
+        <span className="truncate text-[var(--bone-faint)]">{e.detalle}</span>
+      </p>
+    );
+  }
+
+  // El envío: lo que la demo quiere que se lea desde el fondo de la sala.
+  const borde =
+    e.estado === "enviado"
+      ? "border-[var(--steady)]"
+      : e.estado === "fallo"
+        ? "border-[var(--alarm)]"
+        : "border-[var(--line)]";
+
+  return (
+    <div className={`entra mb-3 rounded-md border ${borde} bg-[var(--surface-hi)] px-3 py-2`}>
+      <p className="text-xs text-[var(--bone)]">
+        {e.estado === "fallo" ? "✗" : "✓"} WhatsApp a <strong>{e.cliente}</strong>
+        {" — "}
+        <span
+          className={
+            e.estado === "enviado"
+              ? "font-semibold text-[var(--steady)]"
+              : e.estado === "fallo"
+                ? "text-[var(--alarm)]"
+                : "text-[var(--bone-dim)]"
+          }
+        >
+          {e.estado === "enviado" ? "ENVIADO" : e.estado === "simulado" ? "simulado" : "falló"}
+        </span>
+      </p>
+      {e.detalle && <p className="mt-0.5 text-[10px] text-[var(--bone-faint)]">{e.detalle}</p>}
+    </div>
   );
 }
 
