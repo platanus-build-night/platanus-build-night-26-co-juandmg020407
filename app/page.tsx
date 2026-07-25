@@ -100,7 +100,82 @@ export default function Chispy() {
       setCorriendo(true);
       setFase("Leyendo el archivo");
 
+      const despachar = (ev: EventoChispy) => {
+        switch (ev.tipo) {
+          case "inicio":
+            setTotal(ev.totalClientes);
+            break;
+          case "cliente":
+            setClientes((prev) => [...prev, ev.cliente]);
+            break;
+          case "fase":
+            setFase(ev.nombre);
+            break;
+          case "razonamiento":
+            setRazonamiento((prev) => [...prev, { clase: "texto", texto: ev.texto }]);
+            break;
+          case "herramienta":
+            setRazonamiento((prev) => [
+              ...prev,
+              { clase: "tool", nombre: ev.nombre, detalle: ev.detalle, ok: false },
+            ]);
+            break;
+          case "herramienta_ok":
+            // Cierra la última llamada abierta de esa herramienta.
+            setRazonamiento((prev) => {
+              const sig = [...prev];
+              for (let i = sig.length - 1; i >= 0; i--) {
+                const e = sig[i];
+                if (e.clase === "tool" && e.nombre === ev.nombre && !e.ok) {
+                  sig[i] = { ...e, ok: true, detalle: ev.detalle };
+                  break;
+                }
+              }
+              return sig;
+            });
+            break;
+          case "whatsapp":
+            setRazonamiento((prev) => [
+              ...prev,
+              {
+                clase: "whatsapp",
+                cliente: ev.cliente,
+                estado: ev.estado,
+                detalle: ev.detalle,
+              },
+            ]);
+            break;
+          case "plan":
+            setPlan(ev.plan);
+            break;
+          case "error":
+            setAvisos((prev) => [...prev, ev.mensaje]);
+            break;
+        }
+      };
+
       try {
+        /*
+         * Salvavidas de escenario: con ?cache en la URL se reproduce el último
+         * recorrido bueno guardado en el repo, sin tocar ninguna API. Si la red
+         * de la sala muere, la demo no.
+         */
+        const modoCache = new URLSearchParams(window.location.search).has("cache");
+
+        if (modoCache) {
+          const res = await fetch("/ejemplo/recorrido-cacheado.ndjson");
+          if (!res.ok) throw new Error("No se pudo leer el recorrido cacheado.");
+
+          for (const linea of (await res.text()).split("\n")) {
+            if (!linea.trim()) continue;
+            const ev = JSON.parse(linea) as EventoChispy;
+            despachar(ev);
+            // Ritmo artificial: cascada rápida, agente a ritmo de lectura.
+            await new Promise((r) => setTimeout(r, ev.tipo === "cliente" ? 40 : 650));
+          }
+          return;
+        }
+
         const res = await fetch("/api/procesar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -123,59 +198,7 @@ export default function Chispy() {
 
           for (const linea of lineas) {
             if (!linea.trim()) continue;
-            const ev = JSON.parse(linea) as EventoChispy;
-
-            switch (ev.tipo) {
-              case "inicio":
-                setTotal(ev.totalClientes);
-                break;
-              case "cliente":
-                setClientes((prev) => [...prev, ev.cliente]);
-                break;
-              case "fase":
-                setFase(ev.nombre);
-                break;
-              case "razonamiento":
-                setRazonamiento((prev) => [...prev, { clase: "texto", texto: ev.texto }]);
-                break;
-              case "herramienta":
-                setRazonamiento((prev) => [
-                  ...prev,
-                  { clase: "tool", nombre: ev.nombre, detalle: ev.detalle, ok: false },
-                ]);
-                break;
-              case "herramienta_ok":
-                // Cierra la última llamada abierta de esa herramienta.
-                setRazonamiento((prev) => {
-                  const sig = [...prev];
-                  for (let i = sig.length - 1; i >= 0; i--) {
-                    const e = sig[i];
-                    if (e.clase === "tool" && e.nombre === ev.nombre && !e.ok) {
-                      sig[i] = { ...e, ok: true, detalle: ev.detalle };
-                      break;
-                    }
-                  }
-                  return sig;
-                });
-                break;
-              case "whatsapp":
-                setRazonamiento((prev) => [
-                  ...prev,
-                  {
-                    clase: "whatsapp",
-                    cliente: ev.cliente,
-                    estado: ev.estado,
-                    detalle: ev.detalle,
-                  },
-                ]);
-                break;
-              case "plan":
-                setPlan(ev.plan);
-                break;
-              case "error":
-                setAvisos((prev) => [...prev, ev.mensaje]);
-                break;
-            }
+            despachar(JSON.parse(linea) as EventoChispy);
           }
         }
       } catch (error) {
