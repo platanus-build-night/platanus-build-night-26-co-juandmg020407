@@ -73,7 +73,7 @@ Tu flujo de trabajo:
 2. Examínalos con ver_clientes, solo esos.
 3. Cuantifica con calcular_plata_en_riesgo el grupo que más te preocupe.
 4. Elige el cliente concreto con más plata en juego y mándale su WhatsApp con enviar_whatsapp, personalizado y citando su situación real. Máximo 2 envíos en total: eres un agente con criterio, no una escopeta.
-5. Entrega el plan completo con entregar_plan. Después de entregarlo termina tu turno: ni más herramientas ni más texto.
+5. Entrega el plan completo con entregar_plan. Después de entregarlo responde únicamente "Listo." y termina: ni más herramientas ni más texto.
 
 Antes de cada herramienta escribe UNA frase corta en primera persona: qué vas a mirar y por qué, citando datos concretos cuando ya los tengas. Esas frases se proyectan en directo delante del dueño.`;
 
@@ -337,7 +337,7 @@ export async function ejecutarAgente(
   const entregarPlan = betaTool({
     name: "entregar_plan",
     description:
-      "Registra el plan comercial definitivo de la semana. Llámala una sola vez, al final, con el plan completo.",
+      "Registra el plan comercial definitivo de la semana. Llámala una sola vez, al final, con el plan completo. Cada segmento debe llevar los clienteIds exactos de clientes que hayas visto con ver_clientes: un segmento sin IDs se descarta.",
     inputSchema: ESQUEMA_ENTREGA,
     run: (entrega) => {
       emitir({ tipo: "herramienta", nombre: "entregar_plan", detalle: `${entrega.segmentos.length} segmentos` });
@@ -350,6 +350,11 @@ export async function ejecutarAgente(
             emitir({
               tipo: "error",
               mensaje: `Se descartaron ${s.clienteIds.length - validos.length} IDs inexistentes en "${s.nombre}".`,
+            });
+          } else if (s.clienteIds.length === 0) {
+            emitir({
+              tipo: "error",
+              mensaje: `El segmento "${s.nombre}" llegó sin clientes y se descartó.`,
             });
           }
           return { ...s, clienteIds: validos };
@@ -399,16 +404,19 @@ export async function ejecutarAgente(
   for await (const mensajeStream of runner) {
     for await (const evento of mensajeStream) {
       if (evento.type !== "content_block_delta") continue;
-      if (evento.delta.type === "text_delta") {
+      /*
+       * Solo el texto del agente, no los resúmenes de thinking: estos suelen
+       * llegar en inglés y en la pantalla de una pyme bogotana desentonan.
+       * Y tras entregar el plan, silencio: la pantalla ya está mostrando el
+       * resultado y cualquier coletilla del modelo solo le quita foco.
+       */
+      if (evento.delta.type === "text_delta" && !plan) {
         buffer += evento.delta.text;
-        soltarFrases();
-      } else if (evento.delta.type === "thinking_delta") {
-        buffer += evento.delta.thinking;
         soltarFrases();
       }
     }
 
-    soltarFrases(true);
+    if (!plan) soltarFrases(true);
 
     const mensaje = await mensajeStream.finalMessage();
 
