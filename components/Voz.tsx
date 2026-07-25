@@ -130,7 +130,7 @@ export function Voz({ texto, firma }: { texto: string; firma: string | null }) {
   return (
     <section
       aria-labelledby="voz-titulo"
-      className="mt-8 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
+      className="lamina mt-8 p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <span id="voz-titulo" className="etiqueta">

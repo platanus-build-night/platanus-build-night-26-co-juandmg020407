@@ -349,7 +349,7 @@ export default function Chispy() {
 
           <section className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
             {/* Cascada */}
-            <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
+            <div className="panel overflow-hidden">
               <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
                 <span className="etiqueta">La base, enriquecida</span>
                 <span className="cifra text-xs text-[var(--bone-faint)]">
@@ -364,7 +364,7 @@ export default function Chispy() {
             </div>
 
             {/* Razonamiento */}
-            <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
+            <div className="panel overflow-hidden">
               <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
                 <span className="etiqueta">El agente está pensando</span>
                 {/* El muñequito del agente: quien de verdad está haciendo el trabajo. */}
@@ -474,7 +474,7 @@ function Tarjeta({ s, orden }: { s: Segmento; orden: number }) {
 
   return (
     <article
-      className="sube flex flex-col rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
+      className="lamina sube flex flex-col p-6"
       style={{ animationDelay: `${orden * 90}ms` }}
     >
       <div className="flex items-start justify-between gap-4">

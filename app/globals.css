@@ -152,14 +152,23 @@ body::before {
 
 /*
  * Un instrumento no es una tarjeta. En vez del borde redondeado que llevan
- * todos los paneles de todas partes, cada uno se encuadra con dos corchetes de
+ * todos los paneles de todas partes, los que están midiendo algo —el
+ * instrumento, la cascada, el agente— se encuadran con dos corchetes de
  * registro en diagonal: la marca de una mira, no el contorno de una ficha.
+ *
+ * Lo que es resultado y no medida (el plan, el briefing) va en lámina: la
+ * misma materia sin el encuadre. Si el corchete lo llevara todo dejaría de
+ * significar nada.
  */
-.panel {
-  position: relative;
+.panel,
+.lamina {
   border: 1px solid var(--line);
   border-radius: 2px;
   background: var(--surface);
+}
+
+.panel {
+  position: relative;
 }
 
 .panel::before,
