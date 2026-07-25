@@ -60,7 +60,18 @@ function plataHablada(monto: number): string {
 }
 
 /**
- * Las cifras abreviadas del agente, dichas como se dicen.
+ * Palabras que no pueden cerrar una frase: si el recorte deja una de estas al
+ * final, la frase quedó a medias y se oye como tal.
+ */
+const COLGANTES = new Set([
+  "a", "al", "ante", "bajo", "como", "con", "contra", "cuyo", "de", "del",
+  "desde", "donde", "e", "el", "en", "entre", "hacia", "hasta", "la", "las",
+  "lo", "los", "mediante", "o", "para", "por", "que", "según", "sin", "so",
+  "sobre", "su", "sus", "tras", "u", "un", "una", "unas", "unos", "y",
+]);
+
+/**
+ * Las cifras del agente, dichas como se dicen.
  *
  * `plataHablada()` solo alcanza a las cifras que calculamos aquí. El plan trae
  * además textos libres —"10 clientes en riesgo con $93.8M de histórico"— y ese
@@ -71,13 +82,23 @@ function plataHablada(monto: number): string {
  * mitad.
  */
 function hablarCifras(texto: string): string {
-  return texto.replace(
-    /\$\s?(\d+(?:[.,]\d+)?)\s?([MmKk])(?![a-zA-ZÀ-ÿ])/g,
-    (todo, cifra: string, escala: string) => {
-      const base = Number(cifra.replace(",", "."));
-      if (!Number.isFinite(base)) return todo;
-      return plataHablada(base * (/[Mm]/.test(escala) ? 1_000_000 : 1_000));
-    },
+  return (
+    texto
+      // Abreviadas: "$93.8M", "$450K".
+      .replace(
+        /\$\s?(\d+(?:[.,]\d+)?)\s?([MmKk])(?![a-zA-ZÀ-ÿ])/g,
+        (todo, cifra: string, escala: string) => {
+          const base = Number(cifra.replace(",", "."));
+          if (!Number.isFinite(base)) return todo;
+          return plataHablada(base * (/[Mm]/.test(escala) ? 1_000_000 : 1_000));
+        },
+      )
+      // Completas: "$93.830.000", "$450000". El punto aquí es separador de
+      // miles, y el sintetizador lo lee como si fuera decimal.
+      .replace(/\$\s?(\d{1,3}(?:\.\d{3})+|\d{4,})/g, (todo, cifra: string) => {
+        const monto = Number(cifra.replace(/\./g, ""));
+        return Number.isFinite(monto) ? plataHablada(monto) : todo;
+      })
   );
 }
 
@@ -99,7 +120,17 @@ function pulir(fragmento: string): string {
     texto = texto.slice(0, texto.lastIndexOf("("));
   }
 
-  return texto.replace(/[.;,\s]+$/, "").trim();
+  texto = texto.replace(/[.;,\s]+$/, "");
+
+  // Una preposición suelta al final es lo mismo que el inciso abierto: en
+  // producción salió "que representan 94 millones de pesos en." — el recorte se
+  // comió "histórico" y dejó el "en" mirando al vacío.
+  let palabras = texto.split(" ");
+  while (palabras.length > 1 && COLGANTES.has(palabras.at(-1)!.toLowerCase())) {
+    palabras = palabras.slice(0, -1);
+  }
+
+  return palabras.join(" ").replace(/[.;,\s]+$/, "").trim();
 }
 
 /** Corta en el último espacio para no partir palabras, y limpia la puntuación. */

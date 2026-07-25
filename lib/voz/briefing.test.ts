@@ -208,16 +208,39 @@ test("habla las cifras abreviadas que escribe el agente", () => {
   assert.doesNotMatch(texto, /\d[MK]\b/);
 });
 
-test("no toca los montos que no llevan escala pegada", () => {
+test("habla también los montos escritos completos", () => {
+  // El agente alterna formatos: en producción escribió "$93.830.000", donde el
+  // punto es separador de miles y el sintetizador lo lee como decimal.
   const plan: PlanComercial = {
     analisis: [],
     resumen: "prueba",
-    segmentos: [segmento({ oferta: "20% sobre $2.340.000 en Marzo" })],
+    segmentos: [segmento({ oferta: "beneficio sobre $93.830.000 facturados" })],
   };
 
   const texto = construirBriefing(datos({ plan }));
 
-  assert.match(texto, /\$2\.340\.000 en Marzo/);
+  assert.match(texto, /94 millones de pesos facturados/);
+  assert.doesNotMatch(texto, /\$/);
+});
+
+test("no deja preposiciones colgando cuando el recorte parte la frase", () => {
+  // Salió así en producción: "que representan $93.830.000 en." — el recorte se
+  // comió "histórico" y dejó el "en" solo.
+  const plan: PlanComercial = {
+    analisis: [],
+    resumen: "prueba",
+    segmentos: [
+      segmento({
+        descripcion:
+          "10 clientes en riesgo, con compras recurrentes históricas pero sin " +
+          "actividad hace 222-309 días, que representan mucho dinero en histórico",
+      }),
+    ],
+  };
+
+  const texto = construirBriefing(datos({ plan }));
+
+  assert.doesNotMatch(texto, / (en|de|con|por|para|que|y|a|sin|sobre)\./);
 });
 
 test("concuerda el verbo con el número de envíos reales", () => {
