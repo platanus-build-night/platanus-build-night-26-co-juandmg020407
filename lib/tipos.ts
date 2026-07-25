@@ -102,5 +102,13 @@ export type EventoChispy =
       detalle?: string;
     }
   | { tipo: "plan"; plan: PlanComercial }
+  /**
+   * El guion del briefing hablado, ya redactado en el servidor.
+   *
+   * Viaja con su firma para que /api/voz sepa que lo escribió Chispy. Va sin
+   * firma cuando el entorno no puede firmar (modo cache, sin credenciales): el
+   * texto se sigue mostrando en pantalla, solo que no se puede escuchar.
+   */
+  | { tipo: "briefing"; texto: string; firma: string | null }
   | { tipo: "error"; mensaje: string }
   | { tipo: "fin" };

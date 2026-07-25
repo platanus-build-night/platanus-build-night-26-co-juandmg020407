@@ -10,6 +10,8 @@ import { parsearCsv } from "@/lib/ingesta/csv.ts";
 import { resolverZona } from "@/lib/data/bogota.ts";
 import { calcularRfm } from "@/lib/enriquecimiento/rfm.ts";
 import { ejecutarAgente } from "@/lib/agente/agente.ts";
+import { construirBriefing } from "@/lib/voz/briefing.ts";
+import { firmar } from "@/lib/voz/firma.ts";
 import type { ClienteEnriquecido, EventoChispy, Fuente } from "@/lib/tipos.ts";
 
 export const runtime = "nodejs";
@@ -37,7 +39,16 @@ export async function POST(req: Request) {
 
   const stream = new ReadableStream({
     async start(controlador) {
+      // El briefing hablado necesita saber si el agente llegó a enviar algo de
+      // verdad; se cuenta aquí, de paso, en vez de cambiar la firma del agente.
+      let enviosReales = 0;
+      let enviosSimulados = 0;
+
       const emitir = (evento: EventoChispy) => {
+        if (evento.tipo === "whatsapp") {
+          if (evento.estado === "enviado") enviosReales += 1;
+          else enviosSimulados += 1;
+        }
         controlador.enqueue(codificador.encode(JSON.stringify(evento) + "\n"));
       };
 
@@ -95,7 +106,27 @@ export async function POST(req: Request) {
 
         emitir({ tipo: "fase", nombre: "El agente está decidiendo a quién contactar" });
 
-        await ejecutarAgente(enriquecidos, negocio?.trim() || "una pyme de Bogotá", emitir);
+        const nombreNegocio = negocio?.trim() || "una pyme de Bogotá";
+        const { plan } = await ejecutarAgente(enriquecidos, nombreNegocio, emitir);
+
+        /*
+         * El guion del briefing se redacta aquí, sin volver a llamar al modelo:
+         * sale del plan que el agente acaba de entregar. Si algo fallara al
+         * componerlo, el análisis ya está entero en pantalla y solo se pierde el
+         * botón de voz — nunca al revés.
+         */
+        try {
+          const texto = construirBriefing({
+            negocio: nombreNegocio,
+            clientes: enriquecidos,
+            plan,
+            enviosReales,
+            enviosSimulados,
+          });
+          emitir({ tipo: "briefing", texto, firma: firmar(texto) });
+        } catch {
+          // Sin briefing no hay botón de voz. El resto de la demo sigue igual.
+        }
 
         emitir({ tipo: "fin" });
       } catch (error) {
