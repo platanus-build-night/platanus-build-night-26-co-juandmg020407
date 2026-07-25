@@ -447,7 +447,7 @@ function Tarjeta({ s, orden }: { s: Segmento; orden: number }) {
   const [envio, setEnvio] = useState<
     | { estado: "quieto" }
     | { estado: "enviando" }
-    | { estado: "hecho"; a: string }
+    | { estado: "hecho"; a: string; hora: string }
     | { estado: "falla"; motivo: string; pista?: string }
   >({ estado: "quieto" });
 
@@ -464,7 +464,16 @@ function Tarjeta({ s, orden }: { s: Segmento; orden: number }) {
       const r = await res.json();
       setEnvio(
         r.ok
-          ? { estado: "hecho", a: r.a }
+          ? {
+              estado: "hecho",
+              a: r.a,
+              // La hora se toma cuando el mensaje sale de verdad, no al pintar
+              // la tarjeta: es la que va a aparecer en el móvil de enfrente.
+              hora: new Date().toLocaleTimeString("es-CO", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            }
           : { estado: "falla", motivo: r.motivo, pista: r.pista },
       );
     } catch {
@@ -493,11 +502,46 @@ function Tarjeta({ s, orden }: { s: Segmento; orden: number }) {
         <p className="prosa mt-1 text-sm text-[var(--bone)]">{s.oferta}</p>
       </div>
 
-      {/* El mensaje, tal cual va a llegarle al cliente. */}
+      {/*
+        El mensaje, tal cual va a llegarle al cliente.
+
+        Va con los colores, el rabito y los acuses de WhatsApp a propósito: en
+        la demo esto es lo último que se ve antes de que a alguien del jurado le
+        vibre el móvil, y tiene que parecerse a lo que le va a llegar. Sale a la
+        derecha porque es un mensaje que manda el negocio, no que recibe.
+      */}
       <div className="mt-6">
         <span className="etiqueta">Por {s.canal}</span>
-        <div className="mt-2 max-w-[92%] rounded-2xl rounded-tl-sm bg-[#075E54] px-4 py-3">
-          <p className="prosa text-sm leading-relaxed text-white">{texto}</p>
+        <div className="mt-2 rounded-sm bg-[#0b141a] px-3 py-3">
+          <div className="relative ml-auto max-w-[92%] rounded-lg rounded-tr-none bg-[#005c4b] py-2 pr-3 pl-3">
+            {/* El rabito. */}
+            <span
+              aria-hidden
+              className="absolute top-0 -right-[7px] h-[13px] w-[9px] bg-[#005c4b]"
+              style={{ clipPath: "polygon(0 0, 100% 0, 0 100%)" }}
+            />
+
+            <p className="prosa text-[13.5px] leading-relaxed text-[#e9edef]">
+              {texto}
+              {/* Hueco reservado para que la hora no se monte sobre la última
+                  línea del mensaje, como hace WhatsApp de verdad. */}
+              <span aria-hidden className="inline-block w-[4.5rem]" />
+            </p>
+
+            <span className="absolute right-2.5 bottom-1.5 flex items-center gap-1 text-[10px] text-white/60">
+              {envio.estado === "hecho" ? (
+                <>
+                  {envio.hora}
+                  <VistoDoble />
+                </>
+              ) : (
+                /* Todavía no ha salido del dispositivo: el reloj de WhatsApp
+                   dice exactamente eso, y poner los dos checks aquí sería un
+                   acuse de recibo inventado. */
+                <Pendiente />
+              )}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -505,7 +549,7 @@ function Tarjeta({ s, orden }: { s: Segmento; orden: number }) {
       <div className="mt-5">
         {envio.estado === "hecho" ? (
           <p className="prosa text-sm text-[var(--steady)]">
-            ✓ Enviado a {envio.a}. Mira el móvil.
+            Enviado a {envio.a}. Mira el celular.
           </p>
         ) : (
           <>
@@ -542,6 +586,41 @@ function Tarjeta({ s, orden }: { s: Segmento; orden: number }) {
         {s.justificacion}
       </p>
     </article>
+  );
+}
+
+/** El reloj de WhatsApp: escrito, todavía sin salir del dispositivo. */
+function Pendiente() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3 w-3 shrink-0" aria-hidden>
+      <circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M8 4.4V8l2.4 1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** El doble check azul. En Colombia esto no hay que explicarlo. */
+function VistoDoble() {
+  return (
+    <svg viewBox="0 0 16 11" className="h-[11px] w-4 shrink-0" aria-hidden>
+      {["M1 5.9 3.6 8.6 9.3 1.6", "M6.2 5.9 8.8 8.6 14.5 1.6"].map((d) => (
+        <path
+          key={d}
+          d={d}
+          fill="none"
+          stroke="#53bdeb"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+    </svg>
   );
 }
 
